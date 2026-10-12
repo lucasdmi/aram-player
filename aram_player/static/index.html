@@ -93,6 +93,12 @@
   <div class="hint" style="margin-top:12px">Something not working? Send the log file to whoever set this up:<br><code>~/.aram_player/app.log</code> (Mac) · <code>%USERPROFILE%\.aram_player\app.log</code> (Windows)</div>
 </div></div>
 <script>
+// The local server only answers /api/ calls that carry this header (blocks other websites).
+const _fetch = window.fetch.bind(window);
+window.fetch = (url, opts = {}) => {
+  if (String(url).startsWith("/api/")) opts = {...opts, headers: {...(opts.headers || {}), "X-ARAM": "1"}};
+  return _fetch(url, opts);
+};
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 let override = null;  // bench champ the user clicked
