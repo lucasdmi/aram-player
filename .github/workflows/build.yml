@@ -1,0 +1,52 @@
+name: Build apps
+
+on:
+  workflow_dispatch:          # "Run workflow" button on GitHub
+  push:
+    tags: ["v*"]              # git tag v1.0 && git push --tags -> builds + GitHub Release
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: macos-14
+            artifact: ARAM-Player-mac.dmg
+          - os: windows-latest
+            artifact: ARAM-Player-windows.zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-app.txt
+      - name: Build (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          pyinstaller --noconfirm --windowed --name "ARAM Player" \
+            --add-data "aram_player/static:aram_player/static" --add-data "aram_player/demo:aram_player/demo" \
+            --collect-all curl_cffi --collect-submodules anthropic --collect-submodules webview \
+            "ARAM Player.py"
+          hdiutil create -volname "ARAM Player" -srcfolder "dist/ARAM Player.app" -ov -format UDZO "dist/ARAM-Player-mac.dmg"
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          pyinstaller --noconfirm --windowed --name "ARAM Player" `
+            --add-data "aram_player/static;aram_player/static" --add-data "aram_player/demo;aram_player/demo" `
+            --collect-all curl_cffi --collect-submodules anthropic --collect-submodules webview `
+            "ARAM Player.py"
+          Compress-Archive -Force -Path "dist\ARAM Player" -DestinationPath "dist\ARAM-Player-windows.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/${{ matrix.artifact }}
+      - name: Attach to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/${{ matrix.artifact }}

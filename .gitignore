@@ -1,0 +1,11 @@
+.venv/
+.venv-build/
+build/
+dist/
+__pycache__/
+*.pyc
+*.spec
+_to_delete/
+_backup_pre_refactor/
+.env
+github-build.yml

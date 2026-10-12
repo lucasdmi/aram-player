@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ARAM Player</title>
+<style>
+  :root { --bg:#0d1117; --panel:#161b22; --line:#30363d; --text:#e6edf3; --mute:#8b949e; --gold:#d4a84b; --ok:#3fb950; }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 system-ui, sans-serif; padding:16px; }
+  h1 { font-size:18px; margin:0 0 4px } h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--mute); margin:18px 0 8px }
+  .bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap }
+  .pill { border:1px solid var(--line); border-radius:99px; padding:2px 10px; font-size:12px; color:var(--gold) }
+  .hint { color:var(--mute); margin:6px 0 }
+  .row { display:flex; gap:8px; flex-wrap:wrap }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px; }
+  .champ { display:flex; flex-direction:column; align-items:center; width:72px; font-size:11px; text-align:center; cursor:pointer }
+  .champ img { width:56px; height:56px; border-radius:8px }
+  .item { position:relative; width:52px; text-align:center; font-size:10px; color:var(--mute) }
+  .item img { width:44px; height:44px; border-radius:6px; border:2px solid transparent }
+  .item.owned img { border-color:var(--ok) }
+  .sit { display:flex; gap:10px; align-items:center; margin:6px 0 }
+  .sit img { width:36px; height:36px; border-radius:6px }
+  .tag { display:inline-block; background:#21262d; border-radius:6px; padding:3px 8px; margin:3px; font-size:12px }
+  .me { display:flex; gap:12px; align-items:center }
+  .me img { width:72px; height:72px; border-radius:10px }
+  .mini img { width:22px; height:22px; border-radius:4px }
+  a { color:var(--gold) }
+  .cards { display:none } .cards.on { display:block }
+  #augSearch { background:#0d1117; color:var(--text); border:1px solid var(--line); border-radius:6px; padding:8px; width:100%; font-size:14px }
+  .auggrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:6px; max-height:340px; overflow:auto }
+  .aug { display:flex; gap:8px; align-items:center; padding:6px; border:1px solid var(--line); border-radius:8px; cursor:pointer; background:#0d1117; position:relative }
+  .aug img { width:34px; height:34px; border-radius:6px }
+  .aug .nm { font-size:12px; line-height:1.2 }
+  .aug .tr { font-size:10px; font-weight:700; padding:1px 5px; border-radius:4px; background:#30363d }
+  .aug.sel { outline:2px solid var(--gold) }
+  .aug .star { position:absolute; top:2px; right:6px; color:var(--gold) }
+  .r-Prismatic .tr { background:#6e40c9 } .r-Gold .tr { background:#9e6a03 } .r-Silver .tr { background:#57606a }
+  button { background:#21262d; color:var(--text); border:1px solid var(--line); border-radius:6px; padding:6px 12px; cursor:pointer }
+  button.primary { background:var(--gold); color:#000; border-color:var(--gold); font-weight:600 }
+  .rank { display:flex; gap:10px; align-items:center; padding:8px; border-radius:8px; margin-top:6px; background:#0d1117 }
+  .rank.best { outline:2px solid var(--ok) }
+  .rank img { width:40px; height:40px; border-radius:6px }
+  .score { font-size:20px; font-weight:700; width:34px; text-align:center }
+  .modal { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:flex-start; justify-content:center; padding:24px 16px; z-index:10; overflow:auto }
+  .modal.on { display:flex }
+  .modal .card { width:100%; max-width:460px }
+  .modal label { display:block; margin:10px 0 4px; font-size:13px }
+  .modal input[type=text], .modal input[type=password], .modal select { width:100%; background:#0d1117; color:var(--text); border:1px solid var(--line); border-radius:6px; padding:8px; font-size:14px }
+</style>
+</head>
+<body>
+<div class="bar"><h1>ARAM Player</h1><button id="gear" title="Settings" style="margin-left:auto;order:9">⚙️ Settings</button><span class="pill" id="phase">…</span><span class="pill" id="mode"></span></div>
+<div class="hint" id="hint"></div>
+<div class="cards card" id="cards" style="margin-top:12px">
+  <h2 style="margin-top:0">Mayhem augments <span class="hint" id="augFor" style="text-transform:none;letter-spacing:0"></span></h2>
+  <div class="hint">When cards are offered, click the 3 you see, then <b>Compare for this match</b>. ★ = good fits for this match. The choice is yours.</div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0">
+    <button data-rar="All" class="rarbtn primary">All</button><button data-rar="Prismatic" class="rarbtn">Prismatic</button>
+    <button data-rar="Gold" class="rarbtn">Gold</button><button data-rar="Silver" class="rarbtn">Silver</button>
+    <input id="augSearch" placeholder="Search…" style="flex:1;min-width:120px">
+  </div>
+  <div id="augGrid" class="auggrid"></div>
+  <div id="selBar" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <span class="hint" id="selText">No cards selected</span>
+    <button class="primary" id="rankBtn">Compare for this match</button>
+    <button id="clearBtn">Clear</button>
+    <span class="hint" id="taken"></span>
+  </div>
+  <div id="rankOut"></div>
+</div>
+<div id="app"></div>
+<div class="hint" style="margin-top:24px;font-size:11px">ARAM Player isn't endorsed by Riot Games and doesn't reflect the views or opinions of Riot Games or anyone officially involved in producing or managing Riot Games properties. Riot Games and all associated properties are trademarks or registered trademarks of Riot Games, Inc. Suggestions only. Every choice is yours.</div>
+<div class="modal" id="settings"><div class="card">
+  <h1>Settings</h1>
+  <div class="hint">Everything works without AI (MetaSRC + rules). The AI coach is optional and uses <b>your own</b> Claude API key; costs a few cents per game.</div>
+  <label><input type="checkbox" id="sAi"> Use AI coach</label>
+  <label>Claude API key <span class="hint" id="sKeyHint"></span></label>
+  <input type="password" id="sKey" placeholder="sk-ant-… (leave empty to keep current)">
+  <label>Workspace ID <span class="hint">(only if your key asks for it)</span></label>
+  <input type="text" id="sWs" placeholder="wrkspc_…">
+  <label><input type="checkbox" id="sRec"> Record games (for bug reports; other players' names removed, last 10 kept)</label>
+  <label>Model</label>
+  <select id="sModel"><option value="haiku">Haiku – fast & cheap</option><option value="sonnet">Sonnet – smarter</option></select>
+  <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+    <button class="primary" id="sSave">Save</button><button id="sTest">Test key</button>
+    <button id="sClear">Remove key</button><button id="sClose" style="margin-left:auto">Close</button>
+  </div>
+  <div class="hint" id="sMsg" style="margin-top:8px"></div>
+  <div class="hint" style="margin-top:12px">Something not working? Send the log file to whoever set this up:<br><code>~/.aram_player/app.log</code> (Mac) · <code>%USERPROFILE%\.aram_player\app.log</code> (Windows)</div>
+</div></div>
+<script>
+// Every API call carries X-ARAM (server rejects calls without it: blocks CSRF from other sites).
+const _fetch = window.fetch.bind(window);
+window.fetch = (url, opts = {}) => _fetch(url, {...opts, headers: {...(opts.headers || {}),
+  "X-ARAM": "1", ...(opts.body ? {"Content-Type": "application/json"} : {})}});
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let override = null;  // bench champ the user clicked
+
+function items(list) {
+  return `<div class="row">${(list||[]).map(i =>
+    `<div class="item ${i.owned?'owned':''}"><img src="${i.icon}" title="${esc(i.name)}"><div>${esc(i.name)}</div></div>`).join("")}</div>`;
+}
+function build(card) {
+  const b = card.build || {};
+  return `<div class="card">
+    <div class="me"><img src="${card.icon}"><div><h1>${esc(card.name)}</h1><div class="hint">${esc((card.tags||[]).join(" · "))}</div></div></div>
+    <h2>Core build</h2>${b.items?.length ? items(b.items) : `<div class="hint">MetaSRC build data isn't available right now, so suggestions below come from the built-in rules only. The app retries automatically in a few minutes.</div>`}
+    ${b.augments?.length ? `<h2>Mayhem augments</h2><div class="row">${b.augments.map(a => typeof a === "string" ? `<span class="tag">${esc(a)}</span>` : `<div class="item"><img src="${a.icon}" title="${esc(a.name)}"><div>${esc(a.name)}</div></div>`).join("")}</div>` : ""}
+    ${b.spells?.length ? `<h2>Summoners</h2>${b.spells.map(a=>`<span class="tag">${esc(a)}</span>`).join("")}` : ""}
+    ${b.runes?.length ? `<h2>Runes</h2>${b.runes.map(a=>`<span class="tag">${esc(a)}</span>`).join("")}` : ""}
+    ${b.source ? `<div class="hint" style="margin-top:10px">Source: <a href="${b.source}" target="_blank">MetaSRC</a></div>` : ""}
+  </div>`;
+}
+function champs(list, clickable) {
+  return `<div class="row">${(list||[]).map(c => `<div class="champ" ${clickable?`data-champ="${esc(c.id)}"`:""}>
+     <img src="${c.icon}"><div>${esc(c.name)}</div>
+     ${c.items?.length ? `<div class="mini">${c.items.map(i=>`<img src="${i}">`).join("")}</div>` : ""}</div>`).join("")}</div>`;
+}
+function sourceLine(st) {
+  const ai = st.ai || {};
+  const src = st.advice?.source === "claude" ? "Claude + MetaSRC" : "MetaSRC + built-in rules";
+  const extra = !ai.enabled ? "" : ai.state === "running" ? " · Claude is thinking…"
+              : ai.state === "error" ? ` · Claude unavailable (${esc(ai.error||"")}), showing rules`
+              : "";
+  return `<div class="hint" style="margin-top:8px">Suggestions by ${src}${extra}${ai.enabled ? ` <button onclick="fetch('/api/ai/refresh')" style="margin-left:6px">↻ Re-analyse</button>` : ""}</div>`;
+}
+function teamPanel(st) {
+  const a = st.advice; if (!a?.team_fits?.length) return "";
+  const icon = n => (st.bench||[]).concat(st.me?[st.me]:[]).find(c => c.name === n)?.icon;
+  return `<h2>Good fits for your team</h2><div class="card">
+    ${a.team_note ? `<div style="margin-bottom:8px">${esc(a.team_note)}</div>` : ""}
+    ${a.team_fits.map((p,i) => `<div class="rank ${i===0?'best':''}"><div class="score">${p.score}</div>
+      ${icon(p.name)?`<img src="${icon(p.name)}">`:""}
+      <div style="flex:1"><b>${esc(p.name)}</b>${p.name===st.me?.name?' <span class="tag">current</span>':""}<div class="hint">${esc(p.why)}</div></div></div>`).join("")}
+    <div class="hint">Enemy team is hidden until loading. The choice is yours.</div>
+    ${sourceLine(st)}
+  </div>`;
+}
+function buildPanel(st) {
+  const a = st.advice; if (!a?.final_build?.length) return "";
+  return `<h2>Build ideas for ${esc(st.me?.name||"you")} this match</h2><div class="card">
+    <div><b>Suggested next:</b> <span class="tag">${esc(a.next_item)}</span></div>
+    <div style="margin-top:6px"><b>Possible final build:</b></div>${items(a.final_build)}
+    ${a.playstyle ? `<div class="hint" style="margin-top:6px">${esc(a.playstyle)}</div>` : ""}
+    ${(a.reasons||[]).map(t=>`<div class="hint">• ${esc(t)}</div>`).join("")}
+    ${sourceLine(st)}
+  </div>`;
+}
+function analysis(a) {
+  const s = a?.summary; if (!s || s.enemy_ap === undefined) return "";
+  return `<h2>Options vs this enemy team</h2><div class="card">
+    <div><span class="tag">AP ${s.enemy_ap} / AD ${s.enemy_ad}</span><span class="tag">Tanks ${s.tanks}</span>
+    <span class="tag">Assassins ${s.assassins}</span>
+    ${s.healers.length?`<span class="tag">Healing: ${esc(s.healers.join(", "))}</span>`:""}
+    ${s.heavy_cc.length?`<span class="tag">CC: ${esc(s.heavy_cc.join(", "))}</span>`:""}</div>
+    ${a.situational.map(i=>`<div class="sit"><img src="${i.icon}"><div><b>${esc(i.name)}</b><div class="hint">${esc(i.why)}</div></div></div>`).join("") || '<div class="hint">No adjustments needed, the core build fits.</div>'}
+  </div>`;
+}
+
+async function refresh() {
+  try {
+    const raw = await (await fetch("/api/state")).text();
+    const sig = raw.replace(/"(updated|gameTime)": [\d.]+,?/g, "");   // ignore ticking clocks
+    if (sig === window._lastRaw && !window._forceRender) return;   // nothing changed -> no redraw
+    window._lastRaw = sig; window._forceRender = false;
+    const st = JSON.parse(raw);
+    window._meName = st.me?.name;
+    $("#phase").textContent = st.phase; $("#mode").textContent = st.mode || "";
+    $("#hint").textContent = st.hint || "";
+    $("#cards").classList.toggle("on", st.phase === "InGame" && (st.mode||"").includes("mayhem"));
+    updateAugments(st);
+    $("#taken").textContent = st.taken?.length ? "Taken: " + st.taken.join(", ") : "";
+    let html = "";
+    if (st.phase === "ChampSelect") html += teamPanel(st);
+    if (st.phase === "InGame") html += buildPanel(st);
+    if (st.me) html += build(override || st.me);
+    if (st.phase === "ChampSelect" && st.bench?.length) html += `<h2>Bench (click to preview)</h2>${champs(st.bench, true)}`;
+    if (st.phase === "InGame") html += analysis(st.advice);
+    if (st.enemies?.length) html += `<h2>Enemies</h2>${champs(st.enemies)}`;
+    if (st.allies?.length) html += `<h2>Allies</h2>${champs(st.allies)}`;
+    $("#app").innerHTML = html;
+    document.querySelectorAll("[data-champ]").forEach(el => el.onclick = async () => {
+      window._forceRender = true;
+      override = await (await fetch(`/api/build?champ=${el.dataset.champ}&mode=${encodeURIComponent(st.mode||"mayhem")}`)).json();
+      refresh();
+    });
+    if (st.phase !== "ChampSelect") override = null;
+  } catch (e) { $("#phase").textContent = "App offline"; $("#hint").textContent = "The app stopped responding. Close it and open it again."; }
+}
+
+let augTable = [], augKey = "", rarity = "All", selected = [], agentPicks = new Set();
+function renderGrid() {
+  const q = $("#augSearch").value.toLowerCase();
+  $("#augGrid").innerHTML = augTable
+    .filter(a => (rarity === "All" || a.rarity === rarity) && (!q || a.name.toLowerCase().includes(q)))
+    .map(a => `<div class="aug r-${a.rarity} ${selected.includes(a.name)?'sel':''}" data-aug="${esc(a.name)}" title="${esc(a.rarity)}">
+       ${a.icon?`<img src="${a.icon}">`:""}<div><div class="nm">${esc(a.name)}</div><span class="tr">${esc(a.tier)}</span></div>
+       ${agentPicks.has(a.name.toLowerCase())?'<span class="star">★</span>':""}</div>`).join("")
+    || (augTable.length ? '<div class="hint">No augments match this filter.</div>'
+        : '<div class="hint">Augment data isn\'t available right now (MetaSRC unreachable). It loads automatically once the site responds.</div>');
+  document.querySelectorAll("[data-aug]").forEach(el => el.onclick = () => {
+    const n = el.dataset.aug;
+    selected = selected.includes(n) ? selected.filter(x => x !== n) : [...selected, n].slice(-3);
+    $("#selText").textContent = selected.length ? "Offered: " + selected.join(" · ") : "No cards selected";
+    renderGrid();
+  });
+}
+function updateAugments(st) {
+  const table = st.me?.build?.augment_table || [];
+  const picks = st.advice?.augment_fits || {};
+  const newPicks = new Set(Object.values(picks).flat().map(n => String(n).replace(/\s*\(.*\)$/, "").toLowerCase()));
+  const key = (st.me?.name || "") + table.length + [...newPicks].join();
+  if (key === augKey) return;
+  augKey = key; augTable = table; agentPicks = newPicks;
+  $("#augFor").textContent = st.me ? `for ${st.me.name} (MetaSRC tiers)` : "";
+  renderGrid();
+}
+document.querySelectorAll(".rarbtn").forEach(b => b.onclick = () => {
+  rarity = b.dataset.rar;
+  document.querySelectorAll(".rarbtn").forEach(x => x.classList.toggle("primary", x === b));
+  renderGrid();
+});
+$("#augSearch").oninput = renderGrid;
+async function rankCards() {
+  if (!selected.length) return;
+  $("#rankOut").innerHTML = '<div class="hint">Comparing vs this enemy team…</div>';
+  const r = await (await fetch("/api/augments/rank", {method:"POST", body: JSON.stringify({options: selected})})).json();
+  if (!r.ranking) { $("#rankOut").innerHTML = `<div class="hint">${esc(r.error||"No result")}</div>`; return; }
+  const byName = Object.fromEntries(augTable.map(a => [a.name.toLowerCase(), a]));
+  const sorted = [...r.ranking].sort((a,b)=>b.score-a.score);
+  $("#rankOut").innerHTML = sorted.map((x,i) => {
+    const a = byName[x.name.toLowerCase()];
+    return `<div class="rank ${i===0?'best':''}">
+      <div class="score">${x.score}</div>${a?.icon?`<img src="${a.icon}">`:""}
+      <div style="flex:1"><b>${esc(x.name)}</b> ${a?`<span class="hint">${a.rarity} · ${a.tier}</span>`:""}<div class="hint">${esc(x.why)}</div></div>
+      <button data-take="${esc(x.name)}">I picked this</button></div>`;
+  }).join("") + `<div class="hint">Compared by ${r.source === "claude" ? "Claude (vs this enemy team)" : "MetaSRC tiers"}${r.error ? " – agent error: "+esc(r.error) : ""}</div>`;
+  document.querySelectorAll("[data-take]").forEach(b => b.onclick = async () => {
+    await fetch("/api/augments/take", {method:"POST", body: JSON.stringify({name: b.dataset.take})});
+    clearCards(); window._forceRender = true; refresh();
+  });
+}
+function clearCards() { selected = []; $("#selText").textContent = "No cards selected"; $("#rankOut").innerHTML = ""; renderGrid(); }
+$("#rankBtn").onclick = rankCards;
+$("#clearBtn").onclick = clearCards;
+
+async function loadSettings() {
+  const c = await (await fetch("/api/settings")).json();
+  $("#sAi").checked = c.ai_enabled; $("#sModel").value = c.model || "haiku";
+  $("#sWs").value = c.workspace_id || ""; $("#sKey").value = ""; $("#sRec").checked = !!c.record;
+  $("#sKeyHint").textContent = c.has_key ? "(saved: " + c.key_hint + ")" : "(none saved)";
+}
+async function saveSettings(extra = {}) {
+  const body = {ai_enabled: $("#sAi").checked, model: $("#sModel").value, workspace_id: $("#sWs").value.trim(),
+                api_key: $("#sKey").value.trim(), record: $("#sRec").checked, ...extra};
+  await fetch("/api/settings", {method:"POST", body: JSON.stringify(body)});
+  await loadSettings();
+}
+$("#gear").onclick = () => { loadSettings(); $("#sMsg").textContent = ""; $("#settings").classList.add("on"); };
+$("#sClose").onclick = () => $("#settings").classList.remove("on");
+$("#sSave").onclick = async () => { await saveSettings(); $("#sMsg").textContent = "Saved."; window._forceRender = true; refresh(); };
+$("#sClear").onclick = async () => { await saveSettings({clear_key: true, ai_enabled: false}); $("#sMsg").textContent = "Key removed."; };
+$("#sTest").onclick = async () => {
+  await saveSettings(); $("#sMsg").textContent = "Testing…";
+  const r = await (await fetch("/api/settings/test", {method:"POST", body:"{}"})).json();
+  $("#sMsg").textContent = r.ok ? "✅ Key works." : "❌ " + r.error;
+};
+refresh();
+setInterval(() => { if (!document.hidden) refresh(); }, 3000);  // pause while window is hidden/minimized
+</script>
+</body>
+</html>

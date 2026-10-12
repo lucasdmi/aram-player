@@ -1,0 +1,622 @@
+{
+"version": "test",
+"champions": {
+"Draven": {
+"key": "119",
+"id": "Draven",
+"name": "Draven",
+"tags": [
+"Marksman"
+],
+"info": {
+"attack": 9,
+"magic": 1,
+"defense": 3
+},
+"image": {
+"full": "Draven.png"
+}
+},
+"Lux": {
+"key": "99",
+"id": "Lux",
+"name": "Lux",
+"tags": [
+"Mage",
+"Support"
+],
+"info": {
+"attack": 2,
+"magic": 9,
+"defense": 2
+},
+"image": {
+"full": "Lux.png"
+}
+},
+"Xerath": {
+"key": "101",
+"id": "Xerath",
+"name": "Xerath",
+"tags": [
+"Mage"
+],
+"info": {
+"attack": 1,
+"magic": 10,
+"defense": 2
+},
+"image": {
+"full": "Xerath.png"
+}
+},
+"Ezreal": {
+"key": "81",
+"id": "Ezreal",
+"name": "Ezreal",
+"tags": [
+"Marksman",
+"Mage"
+],
+"info": {
+"attack": 7,
+"magic": 6,
+"defense": 2
+},
+"image": {
+"full": "Ezreal.png"
+}
+},
+"Ziggs": {
+"key": "115",
+"id": "Ziggs",
+"name": "Ziggs",
+"tags": [
+"Mage"
+],
+"info": {
+"attack": 2,
+"magic": 9,
+"defense": 2
+},
+"image": {
+"full": "Ziggs.png"
+}
+},
+"Malphite": {
+"key": "54",
+"id": "Malphite",
+"name": "Malphite",
+"tags": [
+"Tank",
+"Fighter"
+],
+"info": {
+"attack": 5,
+"magic": 7,
+"defense": 9
+},
+"image": {
+"full": "Malphite.png"
+}
+},
+"Darius": {
+"key": "122",
+"id": "Darius",
+"name": "Darius",
+"tags": [
+"Fighter",
+"Tank"
+],
+"info": {
+"attack": 9,
+"magic": 1,
+"defense": 5
+},
+"image": {
+"full": "Darius.png"
+}
+},
+"Annie": {
+"key": "1",
+"id": "Annie",
+"name": "Annie",
+"tags": [
+"Mage"
+],
+"info": {
+"attack": 2,
+"magic": 10,
+"defense": 3
+},
+"image": {
+"full": "Annie.png"
+}
+},
+"Hwei": {
+"key": "910",
+"id": "Hwei",
+"name": "Hwei",
+"tags": [
+"Mage"
+],
+"info": {
+"attack": 1,
+"magic": 9,
+"defense": 2
+},
+"image": {
+"full": "Hwei.png"
+}
+},
+"Yone": {
+"key": "777",
+"id": "Yone",
+"name": "Yone",
+"tags": [
+"Assassin",
+"Fighter"
+],
+"info": {
+"attack": 8,
+"magic": 2,
+"defense": 4
+},
+"image": {
+"full": "Yone.png"
+}
+},
+"Twitch": {
+"key": "29",
+"id": "Twitch",
+"name": "Twitch",
+"tags": [
+"Marksman",
+"Assassin"
+],
+"info": {
+"attack": 9,
+"magic": 3,
+"defense": 2
+},
+"image": {
+"full": "Twitch.png"
+}
+},
+"Jinx": {
+"key": "222",
+"id": "Jinx",
+"name": "Jinx",
+"tags": [
+"Marksman"
+],
+"info": {
+"attack": 9,
+"magic": 2,
+"defense": 2
+},
+"image": {
+"full": "Jinx.png"
+}
+},
+"Seraphine": {
+"key": "147",
+"id": "Seraphine",
+"name": "Seraphine",
+"tags": [
+"Support",
+"Mage"
+],
+"info": {
+"attack": 2,
+"magic": 8,
+"defense": 4
+},
+"image": {
+"full": "Seraphine.png"
+}
+},
+"Soraka": {
+"key": "16",
+"id": "Soraka",
+"name": "Soraka",
+"tags": [
+"Support",
+"Mage"
+],
+"info": {
+"attack": 2,
+"magic": 7,
+"defense": 5
+},
+"image": {
+"full": "Soraka.png"
+}
+},
+"Zed": {
+"key": "238",
+"id": "Zed",
+"name": "Zed",
+"tags": [
+"Assassin"
+],
+"info": {
+"attack": 9,
+"magic": 1,
+"defense": 2
+},
+"image": {
+"full": "Zed.png"
+}
+},
+"Talon": {
+"key": "91",
+"id": "Talon",
+"name": "Talon",
+"tags": [
+"Assassin"
+],
+"info": {
+"attack": 9,
+"magic": 1,
+"defense": 3
+},
+"image": {
+"full": "Talon.png"
+}
+}
+},
+"items": {
+"1001": {
+"name": "Boots",
+"gold": {
+"total": 300,
+"purchasable": true
+},
+"stats": {},
+"tags": [
+"Boots"
+],
+"maps": {
+"11": true,
+"12": true
+},
+"into": [
+"3006"
+]
+},
+"3006": {
+"name": "Berserker's Greaves",
+"gold": {
+"total": 1100,
+"purchasable": true
+},
+"stats": {},
+"tags": [
+"Boots"
+],
+"maps": {
+"11": true,
+"12": true
+}
+},
+"3111": {
+"name": "Mercury's Treads",
+"gold": {
+"total": 1250,
+"purchasable": true
+},
+"stats": {},
+"tags": [
+"Boots"
+],
+"maps": {
+"11": true,
+"12": true
+}
+},
+"3020": {
+"name": "Sorcerer's Shoes",
+"gold": {
+"total": 1100,
+"purchasable": true
+},
+"stats": {},
+"tags": [
+"Boots"
+],
+"maps": {
+"11": true,
+"12": true
+}
+},
+"1038": {
+"name": "B. F. Sword",
+"gold": {
+"total": 1300,
+"purchasable": true
+},
+"stats": {
+"FlatPhysicalDamageMod": 50
+},
+"tags": [],
+"maps": {
+"11": true,
+"12": true
+},
+"into": [
+"3031"
+]
+},
+"6676": {
+"name": "The Collector",
+"gold": {
+"total": 3000,
+"purchasable": true
+},
+"stats": {
+"FlatPhysicalDamageMod": 50
+},
+"tags": [],
+"maps": {
+"11": true,
+"12": true
+}
+},
+"3031": {
+"name": "Infinity Edge",
+"gold": {
+"total": 3400,
+"purchasable": true
+},
+"stats": {
+"FlatPhysicalDamageMod": 50
+},
+"tags": [],
+"maps": {
+"11": true,
+"12": true
+}
+},
+"3036": {
+"name": "Lord Dominik's Regards",
+"gold": {
+"total": 3000,
+"purchasable": true
+},
+"stats": {
+"FlatPhysicalDamageMod": 50
+},
+"tags": [],
+"maps": {
+"11": true,
+"12": true
+}
+},
+"3072": {
+"name": "Bloodthirster",
+"gold": {
+"total": 3400,
+"purchasable": true
+},
+"stats": {
+"FlatPhysicalDamageMod": 50
+},
+"tags": [],
+"maps": {
+"11": true,
+"12": true
+}
+},
+"3033": {
+"name": "Mortal Reminder",
+"gold": {
+"total": 3000,
+"purchasable": true
+},
+"stats": {
+"FlatPhysicalDamageMod": 50
+},
+"tags": [],
+"maps": {
+"11": true,
+"12": true
+}
+},
+"6333": {
+"name": "Death's Dance",
+"gold": {
+"total": 3300,
+"purchasable": true
+},
+"stats": {
+"FlatPhysicalDamageMod": 50
+},
+"tags": [],
+"maps": {
+"11": true,
+"12": true
+}
+},
+"3156": {
+"name": "Maw of Malmortius",
+"gold": {
+"total": 3100,
+"purchasable": true
+},
+"stats": {
+"FlatPhysicalDamageMod": 50
+},
+"tags": [],
+"maps": {
+"11": true,
+"12": true
+}
+},
+"3085": {
+"name": "Runaan's Hurricane",
+"gold": {
+"total": 2650,
+"purchasable": true
+},
+"stats": {
+"PercentAttackSpeedMod": 0.4
+},
+"tags": [],
+"maps": {
+"11": true,
+"12": true
+}
+},
+"3026": {
+"name": "Guardian Angel",
+"gold": {
+"total": 3200,
+"purchasable": true
+},
+"stats": {
+"FlatPhysicalDamageMod": 50
+},
+"tags": [],
+"maps": {
+"11": true,
+"12": false
+}
+},
+"773026": {
+"name": "Guardian Angel",
+"gold": {
+"total": 3200,
+"purchasable": true
+},
+"stats": {
+"FlatPhysicalDamageMod": 50
+},
+"tags": [],
+"maps": {
+"11": true,
+"12": true
+}
+},
+"3165": {
+"name": "Morellonomicon",
+"gold": {
+"total": 2950,
+"purchasable": true
+},
+"stats": {
+"FlatMagicDamageMod": 80
+},
+"tags": [],
+"maps": {
+"11": true,
+"12": true
+}
+},
+"3157": {
+"name": "Zhonya's Hourglass",
+"gold": {
+"total": 3250,
+"purchasable": true
+},
+"stats": {
+"FlatMagicDamageMod": 80
+},
+"tags": [],
+"maps": {
+"11": true,
+"12": true
+}
+},
+"3102": {
+"name": "Banshee's Veil",
+"gold": {
+"total": 3000,
+"purchasable": true
+},
+"stats": {
+"FlatMagicDamageMod": 80
+},
+"tags": [],
+"maps": {
+"11": true,
+"12": true
+}
+},
+"6653": {
+"name": "Liandry's Torment",
+"gold": {
+"total": 3000,
+"purchasable": true
+},
+"stats": {
+"FlatMagicDamageMod": 80
+},
+"tags": [],
+"maps": {
+"11": true,
+"12": true
+}
+},
+"3135": {
+"name": "Void Staff",
+"gold": {
+"total": 3000,
+"purchasable": true
+},
+"stats": {
+"FlatMagicDamageMod": 80
+},
+"tags": [],
+"maps": {
+"11": true,
+"12": true
+}
+},
+"3143": {
+"name": "Randuin's Omen",
+"gold": {
+"total": 2700,
+"purchasable": true
+},
+"stats": {
+"FlatArmorMod": 75
+},
+"tags": [],
+"maps": {
+"11": true,
+"12": true
+}
+},
+"3075": {
+"name": "Thornmail",
+"gold": {
+"total": 2450,
+"purchasable": true
+},
+"stats": {
+"FlatArmorMod": 75
+},
+"tags": [],
+"maps": {
+"11": true,
+"12": true
+}
+},
+"4401": {
+"name": "Force of Nature",
+"gold": {
+"total": 2800,
+"purchasable": true
+},
+"stats": {
+"FlatSpellBlockMod": 55
+},
+"tags": [],
+"maps": {
+"11": true,
+"12": true
+}
+}
+}
+}
