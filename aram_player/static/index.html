@@ -76,7 +76,10 @@
   <div class="hint">Everything works without AI (MetaSRC + rules). The AI coach is optional and uses <b>your own</b> Claude API key; costs a few cents per game.</div>
   <label><input type="checkbox" id="sAi"> Use AI coach</label>
   <label>Claude API key <span class="hint" id="sKeyHint"></span></label>
-  <input type="password" id="sKey" placeholder="sk-ant-… (leave empty to keep current)">
+  <div style="display:flex;gap:6px">
+    <input type="password" id="sKey" placeholder="sk-ant-… (leave empty to keep current)" style="flex:1">
+    <button id="sPaste" type="button" title="Paste from clipboard">Paste</button>
+  </div>
   <label>Workspace ID <span class="hint">(only if your key asks for it)</span></label>
   <input type="text" id="sWs" placeholder="wrkspc_…">
   <label><input type="checkbox" id="sRec"> Record games (for bug reports; other players' names removed, last 10 kept)</label>
@@ -90,11 +93,6 @@
   <div class="hint" style="margin-top:12px">Something not working? Send the log file to whoever set this up:<br><code>~/.aram_player/app.log</code> (Mac) · <code>%USERPROFILE%\.aram_player\app.log</code> (Windows)</div>
 </div></div>
 <script>
-// Every API call carries X-ARAM (server rejects calls without it: blocks CSRF from other sites).
-const _fetch = window.fetch.bind(window);
-window.fetch = (url, opts = {}) => _fetch(url, {...opts, headers: {...(opts.headers || {}),
-  "X-ARAM": "1", ...(opts.body ? {"Content-Type": "application/json"} : {})}});
-
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 let override = null;  // bench champ the user clicked
@@ -260,6 +258,14 @@ async function saveSettings(extra = {}) {
   await loadSettings();
 }
 $("#gear").onclick = () => { loadSettings(); $("#sMsg").textContent = ""; $("#settings").classList.add("on"); };
+$("#sPaste").onclick = async () => {
+  let t = "";
+  try { t = await window.pywebview?.api?.clipboard?.() || ""; } catch (e) {}
+  if (!t) { try { t = await navigator.clipboard.readText(); } catch (e) {} }
+  t = (t || "").trim();
+  if (t) { $("#sKey").value = t; $("#sMsg").textContent = "Key pasted. Press Save or Test key."; }
+  else { $("#sMsg").textContent = "Couldn't read the clipboard. Copy the key again, click the field and press Ctrl+V (Cmd+V on Mac)."; }
+};
 $("#sClose").onclick = () => $("#settings").classList.remove("on");
 $("#sSave").onclick = async () => { await saveSettings(); $("#sMsg").textContent = "Saved."; window._forceRender = true; refresh(); };
 $("#sClear").onclick = async () => { await saveSettings({clear_key: true, ai_enabled: false}); $("#sMsg").textContent = "Key removed."; };

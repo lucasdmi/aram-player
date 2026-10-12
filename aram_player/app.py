@@ -26,8 +26,7 @@ def _wait_ready(url: str, timeout: float = 60) -> None:
     end = time.time() + timeout
     while time.time() < end:
         try:
-            req = urllib.request.Request(url + "/api/state", headers={"X-ARAM": "1"})
-            urllib.request.urlopen(req, timeout=1)
+            urllib.request.urlopen(url + "/api/state", timeout=1)
             return
         except Exception:
             time.sleep(0.3)
