@@ -258,6 +258,19 @@ async function saveSettings(extra = {}) {
   await loadSettings();
 }
 $("#gear").onclick = () => { loadSettings(); $("#sMsg").textContent = ""; $("#settings").classList.add("on"); };
+// Windows webview blocks Ctrl/Cmd+V: paste through the app instead, in any text field
+document.addEventListener("keydown", async e => {
+  const el = e.target;
+  if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "v" || !window.pywebview?.api?.clipboard) return;
+  if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) return;
+  e.preventDefault();
+  const t = (await window.pywebview.api.clipboard() || "").trim();
+  if (!t) return;
+  const a = el.selectionStart ?? el.value.length, b = el.selectionEnd ?? el.value.length;
+  el.value = el.value.slice(0, a) + t + el.value.slice(b);
+  el.selectionStart = el.selectionEnd = a + t.length;
+  el.dispatchEvent(new Event("input"));
+});
 $("#sPaste").onclick = async () => {
   let t = "";
   try { t = await window.pywebview?.api?.clipboard?.() || ""; } catch (e) {}

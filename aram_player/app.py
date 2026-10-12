@@ -4,7 +4,9 @@ Falls back to the default browser if the window library is unavailable.
 """
 from __future__ import annotations
 
+import platform
 import socket
+import subprocess
 import sys
 import time
 import webbrowser
@@ -32,6 +34,23 @@ def _wait_ready(url: str, timeout: float = 60) -> None:
             time.sleep(0.3)
 
 
+class Api:
+    """Exposed to the page as window.pywebview.api.* (desktop app only)."""
+
+    def clipboard(self) -> str:
+        """Read the clipboard text: the in-app webview can't always paste on Windows."""
+        try:
+            if platform.system() == "Windows":
+                return subprocess.run(["powershell", "-NoProfile", "-Command", "Get-Clipboard"],
+                                      capture_output=True, text=True, timeout=5,
+                                      creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)).stdout.strip()
+            if platform.system() == "Darwin":
+                return subprocess.run(["pbpaste"], capture_output=True, text=True, timeout=5).stdout.strip()
+        except Exception:
+            pass
+        return ""
+
+
 def run() -> None:
     from aram_player import main as core
 
@@ -46,7 +65,8 @@ def run() -> None:
         webbrowser.open(url)
         while True:
             time.sleep(3600)
-    webview.create_window("ARAM Player", url, width=520, height=900, min_size=(380, 500))
+    webview.create_window("ARAM Player", url, width=520, height=900, min_size=(380, 500),
+                          text_select=True, js_api=Api())   # text_select: allow selecting/pasting in inputs
     webview.start()  # returns when the window is closed -> app exits
 
 
