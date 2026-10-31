@@ -4,12 +4,21 @@ ARAM Player shows the best build, items and Mayhem augments for your League ARAM
 It's free, has no ads, and only reads official Riot data. It doesn't change the game, so it's safe with Vanguard.
 
 ## Mac
+Needs a Mac with an Apple chip (M1 or newer). Check in Apple menu → **About This Mac**: "Chip Apple M…" works, "Intel" doesn't.
+
 1. Open **ARAM-Player-mac.dmg** and drag **ARAM Player** into **Applications**.
-2. The first time: in Applications, **right-click ARAM Player → Open → Open**.
-   (macOS warns because the app isn't from the App Store. You only need to do this once.)
-   If macOS says the app "is damaged", open Terminal, paste the line below, press Enter and try again:
-   `xattr -dr com.apple.quarantine "/Applications/ARAM Player.app"`
+2. The first time, macOS blocks the app because it isn't notarized by Apple. Unblock it once:
+   - **macOS 15 (Sequoia) or newer:** double-click **ARAM Player**, click **Done** on the warning, then open
+     **System Settings → Privacy & Security**, scroll to the bottom and click **Open Anyway** next to
+     "ARAM Player was blocked". Confirm with **Open** and your Mac password.
+     (Right-click → Open no longer works on these versions.)
+   - **macOS 14 or older:** in Applications, **right-click ARAM Player → Open → Open**.
+   - Either version: this Terminal command does the same thing in one step.
+     Open Terminal, paste the line, press Enter, then open the app normally:
+     `xattr -dr com.apple.quarantine "/Applications/ARAM Player.app"`
 3. Open League of Legends and queue for ARAM or ARAM Mayhem. ARAM Player detects the game automatically.
+
+If nothing opens and no warning appears, the app started and stopped: the reason is in `~/.aram_player/app.log`.
 
 ## Windows
 1. Unzip **ARAM-Player-windows.zip** (right-click → Extract All), for example into `Documents`.

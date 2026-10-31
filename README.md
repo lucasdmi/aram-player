@@ -14,7 +14,7 @@ All versions: [Releases](https://github.com/lucasdmi/aram-player/releases). Down
 **Windows:** right-click the zip → **Extract All** → open the folder → double-click **ARAM Player** (`ARAM Player.exe`).
 First launch: "Windows protected your PC" → **More info → Run anyway**.
 
-**Mac:** open the `.dmg`, drag **ARAM Player** to Applications. First launch: right-click → **Open → Open**.
+**Mac** (Apple chip only): open the `.dmg`, drag **ARAM Player** to Applications. First launch on macOS 15+: double-click, click **Done**, then **System Settings → Privacy & Security → Open Anyway**. On macOS 14 or older: right-click → **Open → Open**.
 
 Full guide: [HOW-TO-INSTALL.md](HOW-TO-INSTALL.md). Optional AI coach: ⚙️ Settings → your Claude API key.
 
