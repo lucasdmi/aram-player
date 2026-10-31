@@ -328,3 +328,56 @@ def final_build(gd: GameData, my_champ: dict, core: list[dict], situational: lis
     return {"final_build": final, "build_order": to_buy,
             "next_item": to_buy[0]["name"] if to_buy else "Build complete",
             "why": [f'{i["name"]}: {i["why"]}' for i in swaps if i["id"] in seen]}
+
+
+# ----------------------------------------------------------------- shopping list
+def _price(gd: GameData, iid: str, pool) -> int:
+    """Shop price of `iid` right now. Owned components are consumed from `pool` and cost nothing."""
+    if pool[iid] > 0:
+        pool[iid] -= 1
+        return 0
+    it = gd.items.get(iid)
+    if not it:
+        return 0
+    parts = [p for p in it.get("from") or [] if p in gd.items]
+    combine = it["gold"]["total"] - sum(gd.items[p]["gold"]["total"] for p in parts)
+    return max(0, combine) + sum(_price(gd, p, pool) for p in parts)
+
+
+def _fill(gd: GameData, iid: str, pool, left: int, buy: list[dict]) -> int:
+    """Buy as much of `iid` as `left` gold allows, biggest affordable piece first. Returns the gold left."""
+    price = _price(gd, iid, pool.copy())
+    if price <= left:
+        _price(gd, iid, pool)                      # commit: consume the components it uses
+        if price > 0:
+            buy.append({"id": iid, "name": gd.items[iid]["name"], "icon": gd.item_icon(iid), "cost": price})
+            pool[iid] += 1                         # bought: it now counts as owned
+        return left - price
+    parts = [p for p in gd.items.get(iid, {}).get("from") or [] if p in gd.items]
+    for p in sorted(parts, key=lambda p: -gd.items[p]["gold"]["total"]):
+        left = _fill(gd, p, pool, left, buy)
+    return left
+
+
+def shopping_list(gd: GameData, plan: list[dict], owned: list[str], gold: float) -> dict:
+    """What to buy with the gold in hand, following `plan` (the final build in buying order).
+    In ARAM you only shop while dead, so this is the answer to "I just died, what do I click?".
+    Owned components count toward the price, like in the shop. Stops at the first item that
+    can't be completed, after buying the biggest pieces of it that fit."""
+    from collections import Counter
+    pool = Counter(owned)
+    buy: list[dict] = []
+    left = int(gold)
+    toward, missing = "", 0
+    for it in plan:
+        iid = it.get("id")
+        if not iid or it.get("owned") or iid not in gd.items:
+            continue
+        price, before = _price(gd, iid, pool.copy()), len(buy)
+        left = _fill(gd, iid, pool, left, buy)
+        missing = price - sum(b["cost"] for b in buy[before:])   # every piece bought lowers the price by its cost
+        if missing > 0:
+            toward = it["name"]
+            break
+    return {"gold": int(gold), "buy": buy, "spent": sum(b["cost"] for b in buy), "left": left,
+            "toward": toward, "missing": missing}

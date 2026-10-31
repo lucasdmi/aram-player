@@ -38,6 +38,11 @@
   .r-Prismatic .tr { background:#6e40c9 } .r-Gold .tr { background:#9e6a03 } .r-Silver .tr { background:#57606a }
   button { background:#21262d; color:var(--text); border:1px solid var(--line); border-radius:6px; padding:6px 12px; cursor:pointer }
   button.primary { background:var(--gold); color:#000; border-color:var(--gold); font-weight:600 }
+  .shop.dead { outline:2px solid var(--gold); animation: pulse 1.2s ease-in-out 3 }
+  @keyframes pulse { 50% { outline-color: transparent } }
+  .buy { display:flex; gap:10px; align-items:center; margin:6px 0 }
+  .buy img { width:36px; height:36px; border-radius:6px }
+  .cost { margin-left:auto; color:var(--gold); font-weight:600 }
   .rank { display:flex; gap:10px; align-items:center; padding:8px; border-radius:8px; margin-top:6px; background:#0d1117 }
   .rank.best { outline:2px solid var(--ok) }
   .rank img { width:40px; height:40px; border-radius:6px }
@@ -143,6 +148,19 @@ function teamPanel(st) {
     ${sourceLine(st)}
   </div>`;
 }
+function shopPanel(st) {
+  const sh = st.shop; if (!sh || !st.me) return "";
+  const dead = st.me.dead;
+  const g = n => n.toLocaleString("en-US");
+  const head = dead ? `<b>You're dead${st.me.respawn ? ` (${st.me.respawn}s)` : ""} - shop now.</b> ${g(sh.gold)} gold`
+                    : `<b>Next death, with ${g(sh.gold)} gold:</b>`;
+  const list = sh.buy.length
+    ? sh.buy.map(i => `<div class="buy"><img src="${i.icon}"><b>${esc(i.name)}</b><span class="cost">${g(i.cost)}</span></div>`).join("")
+    : `<div class="hint">Nothing affordable yet${sh.toward ? ` (${g(sh.missing)} more for ${esc(sh.toward)})` : ""}.</div>`;
+  const tail = sh.buy.length && sh.toward ? `<div class="hint">Toward ${esc(sh.toward)}: ${g(sh.missing)} more after this.</div>`
+             : sh.buy.length ? `<div class="hint">${g(sh.left)} gold left.</div>` : "";
+  return `<h2>Shop</h2><div class="card shop ${dead ? "dead" : ""}">${head}${list}${tail}</div>`;
+}
 function buildPanel(st) {
   const a = st.advice; if (!a?.final_build?.length) return "";
   return `<h2>Build ideas for ${esc(st.me?.name||"you")} this match</h2><div class="card">
@@ -164,6 +182,18 @@ function analysis(a) {
   </div>`;
 }
 
+function deathAlarm(dead) {
+  document.title = dead ? "\u{1F6D2} Shop now - ARAM Player" : "ARAM Player";
+  if (dead && !window._wasDead) {       // one short beep per death; silent where audio needs a click first
+    try {
+      const ac = new (window.AudioContext || window.webkitAudioContext)();
+      const o = ac.createOscillator(), gn = ac.createGain();
+      o.frequency.value = 880; gn.gain.value = 0.08; o.connect(gn); gn.connect(ac.destination);
+      o.start(); o.stop(ac.currentTime + 0.18);
+    } catch (e) {}
+  }
+  window._wasDead = dead;
+}
 async function refresh() {
   try {
     const raw = await (await fetch("/api/state")).text();
@@ -179,13 +209,14 @@ async function refresh() {
     $("#taken").textContent = st.taken?.length ? "Taken: " + st.taken.join(", ") : "";
     let html = "";
     if (st.phase === "ChampSelect") html += teamPanel(st);
-    if (st.phase === "InGame") html += buildPanel(st);
+    if (st.phase === "InGame") html += shopPanel(st) + buildPanel(st);
     if (st.me) html += build(override || st.me);
     if (st.phase === "ChampSelect" && st.bench?.length) html += `<h2>Bench (click to preview)</h2>${champs(st.bench, true)}`;
     if (st.phase === "InGame") html += analysis(st.advice);
     if (st.enemies?.length) html += `<h2>Enemies</h2>${champs(st.enemies)}`;
     if (st.allies?.length) html += `<h2>Allies</h2>${champs(st.allies)}`;
     $("#app").innerHTML = html;
+    deathAlarm(!!(st.phase === "InGame" && st.me?.dead));
     document.querySelectorAll("[data-champ]").forEach(el => el.onclick = async () => {
       window._forceRender = true;
       override = await (await fetch(`/api/build?champ=${el.dataset.champ}&mode=${encodeURIComponent(st.mode||"mayhem")}`)).json();

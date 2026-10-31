@@ -28,6 +28,7 @@ from .advice.rules import RulesAdvisor
 from .data import GameData
 from .log import log
 from .match import Snapshot, from_raw
+from .recommender import shopping_list
 from .sources import Recorder, RecordingSource, RiotSource
 
 # PyInstaller unpacks data files under sys._MEIPASS
@@ -53,8 +54,12 @@ def view(gd: GameData, snap: Snapshot, ctx: Context, advice, ai_status: dict) ->
     if snap.me:
         owned = snap.owned   # copy: ctx.build is the shared cached build, never mutate it
         build = ctx.build | {"items": [it | {"owned": it["id"] in owned} for it in ctx.build.get("items", [])]}
-        me = champ_card(gd, snap.me.champion) | {"build": build}
+        me = champ_card(gd, snap.me.champion) | {"build": build, "dead": snap.me.dead, "respawn": round(snap.me.respawn)}
+    shop = None
+    if snap.phase == "InGame" and snap.me and advice:
+        shop = shopping_list(gd, advice.final_build, snap.me.item_ids, snap.gold)
     return {
+        "shop": shop,
         "phase": snap.phase, "mode": snap.mode, "hint": snap.hint, "queue": snap.queue,
         "gameTime": snap.game_time, "me": me,
         "allies": [champ_card(gd, p.champion) for p in snap.allies],

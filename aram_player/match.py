@@ -25,6 +25,8 @@ class Player:
     item_ids: list[str] = field(default_factory=list)
     level: int = 0
     kda: str = ""
+    dead: bool = False                  # in game only: shopping is possible while dead (ARAM)
+    respawn: float = 0.0                # seconds until respawn, while dead
 
     @property
     def name(self) -> str:
@@ -40,6 +42,7 @@ class Snapshot:
     bench: list[dict] = field(default_factory=list)      # champion records, champ select only
     enemies: list[Player] = field(default_factory=list)  # in game only
     game_time: float = 0.0
+    gold: float = 0.0                                    # my current gold (in game only)
     queue: dict = field(default_factory=dict)            # raw queue info, for debugging
     hint: str = ""
 
@@ -102,7 +105,8 @@ def _player(gd: GameData, p: dict) -> Player | None:
         return None
     sc = p.get("scores", {})
     return Player(c, [str(i["itemID"]) for i in p.get("items", [])], p.get("level", 0),
-                  f'{sc.get("kills", 0)}/{sc.get("deaths", 0)}/{sc.get("assists", 0)}')
+                  f'{sc.get("kills", 0)}/{sc.get("deaths", 0)}/{sc.get("assists", 0)}',
+                  dead=bool(p.get("isDead")), respawn=float(p.get("respawnTimer") or 0))
 
 
 def _in_game(gd: GameData, live: dict, mode, queue) -> Snapshot:
@@ -118,4 +122,4 @@ def _in_game(gd: GameData, live: dict, mode, queue) -> Snapshot:
     allies = [x for x in (_player(gd, p) for p in players if p is not me_raw and p.get("team") == team) if x]
     enemies = [x for x in (_player(gd, p) for p in players if p.get("team") != team) if x]
     return Snapshot("InGame", mode, me=_player(gd, me_raw), allies=allies, enemies=enemies,
-                    game_time=game_time, queue=queue)
+                    game_time=game_time, gold=float(active.get("currentGold") or 0), queue=queue)

@@ -116,8 +116,8 @@ def anonymize(raw: dict) -> dict:
 def _fingerprint(raw: dict) -> str:
     """What matters for advice; ticks with the same fingerprint are not saved again."""
     live = raw.get("live") or {}
-    players = [(p.get("championName"), sorted(i.get("itemID", 0) for i in p.get("items", [])))
-               for p in live.get("allPlayers", [])]
+    players = [(p.get("championName"), sorted(i.get("itemID", 0) for i in p.get("items", [])), bool(p.get("isDead")))
+               for p in live.get("allPlayers", [])]   # isDead: a replay shows the shop-on-death moment
     cs = raw.get("champ_select") or {}
     team = [(p.get("cellId"), p.get("championId")) for p in cs.get("myTeam", [])]
     bench = [b.get("championId") for b in cs.get("benchChampions", [])] or cs.get("benchChampionIds", [])

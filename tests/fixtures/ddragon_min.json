@@ -376,7 +376,12 @@
 "maps": {
 "11": true,
 "12": true
-}
+},
+"from": [
+"1038",
+"1037",
+"1018"
+]
 },
 "3036": {
 "name": "Lord Dominik's Regards",
@@ -613,6 +618,40 @@
 "FlatSpellBlockMod": 55
 },
 "tags": [],
+"maps": {
+"11": true,
+"12": true
+}
+},
+"1037": {
+"name": "Pickaxe",
+"gold": {
+"total": 875,
+"purchasable": true
+},
+"stats": {
+"FlatPhysicalDamageMod": 25
+},
+"tags": [
+"Damage"
+],
+"maps": {
+"11": true,
+"12": true
+}
+},
+"1018": {
+"name": "Cloak of Agility",
+"gold": {
+"total": 600,
+"purchasable": true
+},
+"stats": {
+"FlatCritChanceMod": 0.15
+},
+"tags": [
+"CriticalStrike"
+],
 "maps": {
 "11": true,
 "12": true

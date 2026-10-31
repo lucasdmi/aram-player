@@ -57,6 +57,11 @@ class MatchSnapshotTests(unittest.TestCase):
         self.assertEqual(game.phase, "InGame")
         self.assertEqual([p.name for p in game.enemies], DRAVEN_GAME)
         self.assertEqual(game.owned, {"3006", "6676"})
+        self.assertEqual(game.gold, 700)
+        self.assertFalse(game.me.dead)
+        dead = from_raw(GD, src.poll()[0])
+        self.assertTrue(dead.me.dead)
+        self.assertEqual((dead.me.respawn, dead.gold), (18.0, 1925))
         self.assertEqual(from_raw(GD, src.poll()[0]).phase, "EndOfGame")
 
     def test_mode_detection(self):
@@ -261,6 +266,41 @@ class MetaSrcParserTest(unittest.TestCase):
         self.assertEqual([a["name"] for a in out["augments"]], ["Quest: Steel Your Heart"])
         self.assertEqual(out["augment_table"][0], {"name": "Ultimate Unstoppable", "rarity": "Prismatic",
                                                    "tier": "S", "icon": None})
+
+
+class ShoppingListTest(unittest.TestCase):
+    """Infinity Edge in the fixture = B. F. Sword 1300 + Pickaxe 875 + Cloak of Agility 600 + 625 combine."""
+    PLAN = [GD.item_ref_by_id("3006") | {"owned": True}, GD.item_ref_by_id("3031") | {"owned": False},
+            GD.item_ref_by_id("3036") | {"owned": False}]
+
+    def test_buys_the_biggest_piece_that_fits(self):
+        from aram_player.recommender import shopping_list
+        sh = shopping_list(GD, self.PLAN, ["3006", "1038"], 1000)        # owns the B. F. Sword
+        self.assertEqual([(b["name"], b["cost"]) for b in sh["buy"]], [("Pickaxe", 875)])
+        self.assertEqual((sh["toward"], sh["missing"], sh["left"]), ("Infinity Edge", 1225, 125))
+
+    def test_completes_the_item_and_moves_on(self):
+        from aram_player.recommender import shopping_list
+        sh = shopping_list(GD, self.PLAN, ["3006", "1038", "1037"], 1300)
+        self.assertEqual([(b["name"], b["cost"]) for b in sh["buy"]], [("Infinity Edge", 1225)])
+        self.assertEqual((sh["toward"], sh["missing"], sh["left"]), ("Lord Dominik's Regards", 3000, 75))
+
+    def test_nothing_affordable(self):
+        from aram_player.recommender import shopping_list
+        sh = shopping_list(GD, self.PLAN, ["3006"], 500)
+        self.assertEqual(sh["buy"], [])
+        self.assertEqual((sh["toward"], sh["missing"]), ("Infinity Edge", 3400))
+
+    def test_state_has_shop_only_in_game(self):
+        from aram_player.main import view
+        snap = in_game("Draven", DRAVEN_GAME, owned=["3006"])
+        snap.gold = 900
+        advice = guard(GD, snap, RulesAdvisor(GD).advise(snap, CTX), CTX)
+        st = view(GD, snap, CTX, advice, {})
+        self.assertEqual(st["shop"]["gold"], 900)
+        self.assertTrue(st["shop"]["toward"])
+        cs = Snapshot("ChampSelect", "mayhem", me=Player(GD.champ("Draven")))
+        self.assertIsNone(view(GD, cs, CTX, None, {})["shop"])
 
 
 class WebSecurityTest(unittest.TestCase):
