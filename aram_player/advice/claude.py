@@ -87,7 +87,7 @@ class ClaudeAdvisor:
 
     def _game_payload(self, snap: Snapshot, ctx: Context) -> dict:
         from ..recommender import analyse
-        an = analyse(self.gd, snap.me.champion, [p.champion for p in snap.enemies], snap.owned)
+        an = analyse(self.gd, snap.me.champion, [p.champion for p in snap.enemies], snap.owned, snap.enemies)
         table = ctx.build.get("augment_table") or []
         payload = {
             "mode": snap.mode, "game_time_s": round(snap.game_time),

@@ -9,11 +9,12 @@ from __future__ import annotations
 
 import copy
 import json
+import threading
 import time
 from pathlib import Path
 
 from . import live_client
-from .lcu import LCU
+from .lcu import LCU, LcuEvents
 from .match import IN_GAME_PHASES
 
 RECORDINGS = Path.home() / ".aram_player" / "recordings"
@@ -23,19 +24,35 @@ KEEP_GAMES = 10
 class RiotSource:
     """One poll = one raw tick; fetches only what the current phase needs."""
 
-    def __init__(self) -> None:
+    def __init__(self, push: bool = True) -> None:
         self.lcu = LCU()
+        self.wake = threading.Event()
+        self.events = LcuEvents(self.lcu, self.wake)
+        if push:
+            self.events.start()
+
+    def wait(self, delay: float) -> None:
+        """Sleep until the next poll, or less if the client pushes a change / a build finishes loading."""
+        self.wake.wait(delay)
+        self.wake.clear()
 
     def poll(self) -> tuple[dict, float]:
         phase = self.lcu.phase()
+        live_now = None
+        if phase not in IN_GAME_PHASES and getattr(self, "_last", None) in IN_GAME_PHASES:
+            # the client often stalls while the game runs: trust the game's own API instead of flapping
+            live_now = live_client.all_game_data()
+            if live_now:
+                phase = self._last
+        self._last = phase
         raw = {"t": time.time(), "phase": phase, "gameflow": None, "champ_select": None, "live": None}
         if phase == "ChampSelect":
             raw["gameflow"] = self.lcu.gameflow_session()
             raw["champ_select"] = self.lcu.champ_select()
         elif phase in IN_GAME_PHASES:
             raw["gameflow"] = self.lcu.gameflow_session()
-            raw["live"] = live_client.all_game_data()
-        delay = {"ChampSelect": 2, "InProgress": 3, "GameStart": 3}.get(phase, 5) if phase else 10
+            raw["live"] = live_now or live_client.all_game_data()
+        delay = {"ChampSelect": 2, "InProgress": 5, "GameStart": 5}.get(phase, 5) if phase else 10
         return raw, delay
 
 
@@ -46,6 +63,11 @@ class RecordingSource:
         lines = Path(path).read_text(encoding="utf-8").splitlines()
         self.ticks = [json.loads(l) for l in lines if l.strip()]
         self.loop, self.delay, self.i = loop, delay, 0
+        self.wake = threading.Event()
+
+    def wait(self, delay: float) -> None:
+        self.wake.wait(delay)
+        self.wake.clear()
 
     def poll(self) -> tuple[dict, float]:
         if self.i >= len(self.ticks):

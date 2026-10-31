@@ -13,6 +13,7 @@ import os
 import secrets
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from http.cookies import SimpleCookie
@@ -20,7 +21,7 @@ from urllib.parse import parse_qs, urlparse
 
 import sys
 
-from . import config
+from . import config, lcu
 from .advice import AdviceEngine, Context
 from .advice.claude import ClaudeAdvisor, model as ai_model, test_key
 from .advice.rules import RulesAdvisor
@@ -39,6 +40,7 @@ lock = threading.Lock()
 taken_augments: list[str] = []      # Mayhem augments the player picked this game
 current: dict = {}                  # latest snapshot + context, for card comparison
 engine: AdviceEngine | None = None
+builds: "Builds | None" = None
 
 
 def champ_card(gd: GameData, champ: dict) -> dict:
@@ -49,10 +51,9 @@ def view(gd: GameData, snap: Snapshot, ctx: Context, advice, ai_status: dict) ->
     """Everything the UI shows, as plain JSON."""
     me = None
     if snap.me:
-        me = champ_card(gd, snap.me.champion) | {"build": ctx.build}
-        owned = snap.owned
-        for it in ctx.build.get("items", []):
-            it["owned"] = it["id"] in owned
+        owned = snap.owned   # copy: ctx.build is the shared cached build, never mutate it
+        build = ctx.build | {"items": [it | {"owned": it["id"] in owned} for it in ctx.build.get("items", [])]}
+        me = champ_card(gd, snap.me.champion) | {"build": build}
     return {
         "phase": snap.phase, "mode": snap.mode, "hint": snap.hint, "queue": snap.queue,
         "gameTime": snap.game_time, "me": me,
@@ -66,13 +67,79 @@ def view(gd: GameData, snap: Snapshot, ctx: Context, advice, ai_status: dict) ->
     }
 
 
+# ----------------------------------------------------------------------------- builds
+class Builds:
+    """MetaSRC builds without blocking the loop: cached builds return instantly, missing ones are
+    fetched by one background worker (MetaSRC is rate-limited anyway) and the loop is woken when ready.
+    In champ select the whole bench is prefetched, so swapping champions shows a build immediately."""
+
+    def __init__(self, gd: GameData, on_ready=lambda: None) -> None:
+        self.gd, self.on_ready = gd, on_ready
+        self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="metasrc")
+        self.pending: set[tuple[str, str]] = set()
+        self._lock = threading.Lock()
+
+    def get(self, champ: dict, mode: str) -> dict:
+        hit = self.gd.cached_build(champ, mode)
+        if hit is not None:
+            return hit
+        self._schedule(champ, mode, notify=True)
+        return {"items": [], "augments": [], "runes": [], "loading": True}
+
+    def prefetch(self, champs: list[dict], mode: str) -> None:
+        for c in champs[:4]:            # cap background downloads
+            if self.gd.cached_build(c, mode) is None:
+                self._schedule(c, mode, notify=False)
+
+    def _schedule(self, champ: dict, mode: str, notify: bool) -> None:
+        key = (champ["id"], mode)
+        with self._lock:
+            if key in self.pending:
+                return
+            self.pending.add(key)
+
+        def job():
+            try:
+                self.gd.metasrc_build(champ, mode)
+            finally:
+                with self._lock:
+                    self.pending.discard(key)
+                if notify:
+                    self.on_ready()
+
+        self.pool.submit(job)
+
+
+# ----------------------------------------------------------------------------- item sets
+def sync_item_set(source, gd: GameData, snap: Snapshot, advice, last: list) -> None:
+    """Opt-in: put the suggested build into the client's item sets (shop > Recommended).
+    Only our own 'ARAM Player' set is replaced; written when the build actually changes."""
+    if not (config.item_sets() and isinstance(source, RiotSource) and snap.me and advice):
+        return
+    final = [i["id"] for i in advice.final_build]
+    if not final:
+        return
+    situational = [i["id"] for i in advice.situational]
+    key = (snap.me.name, tuple(final), tuple(situational))
+    if last and last[0] == key:
+        return
+    s = lcu.item_set(int(snap.me.champion["key"]), f"ARAM Player – {snap.me.name}",
+                     [("Suggested build", final), ("Situational", situational)])
+    ok = lcu.write_item_set(source.lcu, s)
+    log.info("item set for %s %s", snap.me.name, "written" if ok else "NOT written")
+    if ok:
+        last[:] = [key]
+
+
 # ----------------------------------------------------------------------------- loop
 def run_loop(gd: GameData, demo: bool):
-    global engine
+    global engine, builds
     source = RecordingSource(DEMO, delay=8) if demo else RiotSource()
     recorder = Recorder()
+    builds = Builds(gd, on_ready=source.wake.set)
     engine = AdviceEngine(gd, RulesAdvisor(gd), ClaudeAdvisor(gd), claude_on=config.ai_enabled)
     mode, last_phase = None, None
+    last_item_set: list = []
     while True:
         delay = 5
         try:
@@ -86,9 +153,17 @@ def run_loop(gd: GameData, demo: bool):
                 if snap.phase == "ChampSelect":
                     taken_augments.clear()          # new game
                 last_phase = snap.phase
-            ctx = Context(build=gd.metasrc_build(snap.me.champion, snap.mode or "mayhem") if snap.me else {},
+            bmode = snap.mode or "mayhem"
+            ctx = Context(build=builds.get(snap.me.champion, bmode) if snap.me else {},
                           taken=list(taken_augments))
+            if snap.phase == "ChampSelect":
+                builds.prefetch(snap.bench, bmode)
             advice, ai_status = engine.advise(snap, ctx) if snap.me else (None, {})
+            if snap.phase == "ChampSelect" and not ctx.build.get("loading"):
+                try:
+                    sync_item_set(source, gd, snap, advice, last_item_set)
+                except Exception:
+                    log.exception("item set sync failed")
             current.update(snap=snap, ctx=ctx)
             with lock:
                 state.clear()
@@ -98,7 +173,7 @@ def run_loop(gd: GameData, demo: bool):
             with lock:
                 state.clear()
                 state.update(phase="Error", hint=f"{e} (details in ~/.aram_player/app.log)")
-        time.sleep(delay)
+        source.wait(delay)
 
 
 # ----------------------------------------------------------------------------- web
@@ -199,7 +274,7 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_error(400, "invalid JSON")
             return
         if u.path == "/api/settings":
-            upd = {k: body[k] for k in ("ai_enabled", "model", "workspace_id", "record") if k in body}
+            upd = {k: body[k] for k in ("ai_enabled", "model", "workspace_id", "record", "item_sets") if k in body}
             if body.get("api_key"):           # empty = keep existing key
                 upd["api_key"] = body["api_key"].strip()
             if body.get("clear_key"):

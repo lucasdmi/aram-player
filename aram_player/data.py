@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import re
+import threading
 import time
 from urllib.parse import urljoin
 from pathlib import Path
@@ -33,6 +34,11 @@ def _browser_get(url: str):
 
 CACHE = Path.home() / ".aram_player" / "cache"
 CACHE.mkdir(parents=True, exist_ok=True)
+for _old in [*CACHE.glob("metasrc_*.html"), *CACHE.glob("metasrc_v5_*.json"), *CACHE.glob("metasrc_v2_*.json")]:   # raw pages are no longer kept (disk + memory)
+    try:
+        _old.unlink()
+    except OSError:
+        pass
 TTL = 24 * 3600
 UA = {"User-Agent": "Mozilla/5.0 (ARAM-Player personal build helper)"}
 DD = "https://ddragon.leagueoflegends.com"
@@ -45,6 +51,7 @@ SLUG_OVERRIDES = {
 }
 
 _last_fetch = 0.0
+_fetch_lock = threading.Lock()
 _failures: dict[str, tuple[float, dict]] = {}
 FAIL_BACKOFF = 600
 
@@ -70,7 +77,7 @@ def _cached_json(name: str, url: str, ttl: int = TTL):
 def _prune_old_patches(version: str) -> None:
     """Patch-keyed cache files from older patches are dead weight; remove them."""
     for f in CACHE.glob("*_*.json"):
-        if f.name.startswith(("champion_", "item_", "runes_", "metasrc_v4_", "metasrc_v5_")) and version not in f.name:
+        if f.name.startswith(("champion_", "item_", "runes_", "metasrc_v4_", "metasrc_v5_", "metasrc_v6_", "metasrc_v3_augment")) and version not in f.name:
             try:
                 f.unlink()
             except OSError:
@@ -165,14 +172,29 @@ class GameData:
     def slug(champ: dict) -> str:
         if champ["id"] in SLUG_OVERRIDES:
             return SLUG_OVERRIDES[champ["id"]]
-        return re.sub(r"[^a-z0-9]", "", champ["name"].lower())
+        # MetaSRC: spaces -> hyphens ("twisted-fate", "dr-mundo"), punctuation dropped ("khazix")
+        name = re.sub(r"[^a-z0-9 ]", "", champ["name"].lower())
+        return re.sub(r"\s+", "-", name.strip())
 
     # ------------------------------------------------------------------ MetaSRC
     def metasrc_build(self, champ: dict, mode: str = "mayhem") -> dict:
         """mode: 'mayhem' or 'aram'. Returns {items, runes, augments, source, error?}."""
-        slug = self.slug(champ)
+        hit = self.cached_build(champ, mode)
+        if hit is not None:
+            return hit
+        with _fetch_lock:                 # one MetaSRC request at a time (prefetch worker + /api/build)
+            hit = self.cached_build(champ, mode)   # another thread may have just fetched it
+            if hit is not None:
+                return hit
+            return self._fetch_build(champ, mode)
+
+    def _build_file(self, champ: dict, mode: str) -> Path:
         # keyed by patch: a new patch invalidates builds immediately (bump v5 when the parser changes)
-        f = CACHE / f"metasrc_v5_{self.version}_{mode}_{slug}.json"
+        return CACHE / f"metasrc_v6_{self.version}_{mode}_{self.slug(champ)}.json"
+
+    def cached_build(self, champ: dict, mode: str = "mayhem") -> dict | None:
+        """Build from memory/disk (or a recent failure) without touching the network; None = must fetch."""
+        f = self._build_file(champ, mode)
         memo = self._builds.get(f.name)
         if memo and time.time() - memo[0] < TTL:
             return memo[1]
@@ -180,10 +202,14 @@ class GameData:
             result = json.loads(f.read_text())
             self._builds[f.name] = (f.stat().st_mtime, result)
             return result
-
         fail = _failures.get(f.name)
         if fail and time.time() - fail[0] < FAIL_BACKOFF:
             return fail[1]
+        return None
+
+    def _fetch_build(self, champ: dict, mode: str) -> dict:
+        slug = self.slug(champ)
+        f = self._build_file(champ, mode)
         url = f"https://www.metasrc.com/lol/{mode}/champions/{slug}/build"
         result = {"items": [], "runes": [], "augments": [], "source": url}
         global _last_fetch
@@ -194,7 +220,6 @@ class GameData:
             _last_fetch = time.time()
             r = _browser_get(url)
             r.raise_for_status()
-            (CACHE / f"metasrc_{mode}_{slug}.html").write_text(r.text)  # for parser debugging
             result.update(self._parse_metasrc(r.text))
             if not result["items"]:
                 # page loaded but nothing parsed: MetaSRC changed its layout. Don't cache an empty build.
@@ -212,7 +237,7 @@ class GameData:
 
     def augment_catalog(self) -> list[dict]:
         """All Mayhem augments in MetaSRC tier-list order: [{name, icon, rank}]."""
-        f = CACHE / "metasrc_v2_augment_catalog.json"
+        f = CACHE / f"metasrc_v3_augment_catalog_{self.version}.json"  # per patch: augment pool changes
         if f.exists() and time.time() - f.stat().st_mtime < TTL:
             return json.loads(f.read_text())
         fail = _failures.get(f.name)

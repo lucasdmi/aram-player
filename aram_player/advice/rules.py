@@ -33,7 +33,7 @@ class RulesAdvisor:
             return a
 
         enemies = [p.champion for p in snap.enemies]
-        an = analyse(self.gd, snap.me.champion, enemies, snap.owned)
+        an = analyse(self.gd, snap.me.champion, enemies, snap.owned, snap.enemies)
         fb = final_build(self.gd, snap.me.champion, core, an["situational"], snap.owned)
         a.summary = an["summary"]
         a.situational = an["situational"]

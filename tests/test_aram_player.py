@@ -96,6 +96,24 @@ class AdviceGuardTests(unittest.TestCase):
         self.assertEqual(a.next_item, "Infinity Edge")
         self.assertIn("Mortal Reminder", [i["name"] for i in a.final_build])   # Yone + Darius heal
 
+    def test_fed_enemy_drives_defensive_pick(self):
+        from aram_player.recommender import analyse
+        names = [c for c in ("Lux", "Garen", "Darius", "Jinx", "Ashe") if GD.champ(c)]
+        fed_name = next((c for c in names if GD.champ(c).get("info", {}).get("magic", 0) > 5), None)
+        if not fed_name:
+            self.skipTest("fixture has no AP champion")
+        enemies = [Player(GD.champ(c), [], 10, "12/1/5" if c == fed_name else "1/6/2") for c in names]
+        an = analyse(GD, GD.champ("Draven"), [p.champion for p in enemies], set(), enemies)
+        self.assertEqual(an["summary"]["fed"][0], GD.champ(fed_name)["name"])
+        self.assertTrue(any("fed" in s["why"] for s in an["situational"]))
+
+    def test_adc_styles_pick_different_anti_tank(self):
+        from aram_player.recommender import adc_style, _pick
+        self.assertEqual(adc_style(GD.champ("Jinx")), "crit")
+        self.assertEqual(adc_style(GD.champ("Ezreal")), "lethality")
+        self.assertEqual(_pick(GD, "armor_pen", "ad", "crit")["name"], "Lord Dominik's Regards")
+        self.assertEqual(adc_style(GD.champ("Lux")), None)
+
     def test_rules_seraphine_gets_no_ad_items(self):            # regression: AD items for Seraphine
         snap = in_game("Seraphine", SERAPHINE_GAME)
         a = guard(GD, snap, RulesAdvisor(GD).advise(snap, CTX), CTX)
@@ -284,6 +302,63 @@ class WebSecurityTest(unittest.TestCase):
         self.assertEqual(self.status("lan", "/api/state", {"X-ARAM": "1", "Cookie": "aram_token=nope"}), 403)
         self.assertEqual(self.status("lan", "/api/state", {"X-ARAM": "1", "Cookie": "aram_token=s3cret"}), 200)
         self.assertEqual(self.status("lan", "/?token=s3cret"), 302)
+
+
+class BuildsPrefetchTest(unittest.TestCase):
+    def test_get_never_blocks_and_wakes_when_ready(self):
+        import threading
+        import time
+        from aram_player.main import Builds
+        gd = game_data()
+        release, woke = threading.Event(), threading.Event()
+        built = {"items": [GD.item_ref_by_id("3031")], "augments": [], "runes": []}
+        store: dict = {}
+        gd.cached_build = lambda c, m: store.get((c["id"], m))
+
+        def slow_fetch(c, m):
+            release.wait(5)
+            store[(c["id"], m)] = built
+            return built
+        gd.metasrc_build = slow_fetch
+        b = Builds(gd, on_ready=woke.set)
+        jinx = gd.champ("Draven")
+        t0 = time.time()
+        self.assertTrue(b.get(jinx, "mayhem")["loading"])        # returns at once while fetching
+        self.assertTrue(b.get(jinx, "mayhem")["loading"])        # no duplicate fetch scheduled
+        self.assertLess(time.time() - t0, 0.5)
+        self.assertEqual(len(b.pending), 1)
+        release.set()
+        self.assertTrue(woke.wait(5))
+        self.assertIs(b.get(jinx, "mayhem"), built)
+
+
+class ItemSetTest(unittest.TestCase):
+    def test_only_our_set_is_replaced(self):
+        from aram_player.lcu import ITEM_SET_UID, item_set, merge_item_sets
+        mine = {"uid": "players-own", "title": "My Jinx"}
+        old_ours = {"uid": ITEM_SET_UID, "title": "ARAM Player – Lux"}
+        new = item_set(119, "ARAM Player – Draven", [("Suggested build", ["3031", "3006"]), ("Situational", [])])
+        merged = merge_item_sets({"accountId": 1, "timestamp": 5, "itemSets": [mine, old_ours]}, new)
+        self.assertEqual(merged["accountId"], 1)
+        self.assertEqual([x["uid"] for x in merged["itemSets"]], ["players-own", ITEM_SET_UID])
+        self.assertEqual(merged["itemSets"][1]["title"], "ARAM Player – Draven")
+        self.assertEqual(len(new["blocks"]), 1)                  # empty blocks are dropped
+        self.assertEqual(new["associatedMaps"], [12])
+
+    def test_never_writes_without_reading_existing_sets(self):
+        from aram_player.lcu import write_item_set
+
+        class FakeLcu:
+            def __init__(self):
+                self.puts = []
+            def get(self, path):
+                return {"summonerId": 7} if "current-summoner" in path else None   # sets read fails
+            def request(self, *a):
+                self.puts.append(a)
+                return True
+        fake = FakeLcu()
+        self.assertFalse(write_item_set(fake, {"uid": "x"}))
+        self.assertEqual(fake.puts, [])
 
 
 if __name__ == "__main__":

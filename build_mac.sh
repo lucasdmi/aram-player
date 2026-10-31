@@ -9,7 +9,7 @@ pip install -r requirements-app.txt -q
 rm -rf build dist
 pyinstaller --noconfirm --windowed --name "ARAM Player" \
   --add-data "aram_player/static:aram_player/static" --add-data "aram_player/demo:aram_player/demo" \
-  --collect-all curl_cffi --collect-submodules anthropic --collect-submodules webview \
+  --collect-all curl_cffi --collect-submodules anthropic --collect-submodules webview --collect-submodules websocket \
   "ARAM Player.py"
 hdiutil create -volname "ARAM Player" -srcfolder "dist/ARAM Player.app" -ov -format UDZO "dist/ARAM-Player-mac.dmg"
 echo

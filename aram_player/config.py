@@ -9,7 +9,7 @@ from pathlib import Path
 
 PATH = Path.home() / ".aram_player" / "config.json"
 DEFAULTS = {"ai_enabled": False, "api_key": "", "workspace_id": "", "model": "haiku",
-            "record": False}
+            "record": False, "item_sets": False}
 _lock = threading.Lock()
 
 
@@ -44,6 +44,10 @@ def model_alias() -> str:
     return os.environ.get("ARAM_MODEL") or load()["model"]
 
 
+def item_sets() -> bool:
+    return bool(load().get("item_sets"))
+
+
 def recording() -> bool:
     return bool(load().get("record"))
 
@@ -62,5 +66,5 @@ def public() -> dict:
     cfg = load()
     k = api_key()
     return {"ai_enabled": ai_enabled(), "model": model_alias(), "workspace_id": workspace_id(),
-            "record": recording(),
+            "record": recording(), "item_sets": item_sets(),
             "has_key": bool(k), "key_hint": (k[:7] + "…" + k[-4:]) if len(k) > 12 else ""}
